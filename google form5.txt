@@ -1,0 +1,41 @@
+function createPDFandSend() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var lastRow = sheet.getLastRow();
+  var data = sheet.getRange(lastRow, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  var name = data[1];   // Name (Column B)
+  var className = data[2]; // Class (Column C)
+  var phone = data[3];   // Phone (Column D)
+  var email = data[4];   // Email (Column E)
+
+  // ✅ Email Validation
+  if (!email.includes("@") || !email.includes(".")) {
+    Logger.log("Invalid email detected: " + email);
+    return; // Stop execution if email is invalid
+  }
+
+  var folderId = "1C5ODzCTGUMablB5Fb6j52tHIkIm__Rtx"; // Google Drive folder ID
+  var folder = DriveApp.getFolderById(folderId);
+  
+  var doc = DocumentApp.create(name + "_Details");
+  var docId = doc.getId();
+  var body = doc.getBody();
+
+  body.appendParagraph("📌 Personal Details");
+  body.appendParagraph("Name: " + name);
+  body.appendParagraph("Class: " + className);
+  body.appendParagraph("Phone: " + phone);
+  body.appendParagraph("Email: " + email);
+  
+  doc.saveAndClose(); 
+  
+  var docFile = DriveApp.getFileById(docId);
+  var pdfBlob = docFile.getAs('application/pdf');
+  var pdfFile = folder.createFile(pdfBlob).setName(name + "_Details.pdf");
+  
+  GmailApp.sendEmail(email, "Your Details PDF", "Hello " + name + ",\n\nPlease find your attached details in PDF format.\n\nBest Regards!", {
+    attachments: [pdfBlob]
+  });
+
+  DriveApp.getFileById(docId).setTrashed(true);
+}

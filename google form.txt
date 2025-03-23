@@ -1,0 +1,37 @@
+function generatePDFs() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getDataRange().getValues();
+  
+  var folder = DriveApp.getFolderById("1cBgpN3AsXWjIUUzQdzsPyUtw21homBF6"); // Replace with your actual folder ID
+
+  for (var i = 1; i < data.length; i++) {
+    var name = data[i][0];  
+    var studentClass = data[i][1];  
+    var phone = data[i][2];  
+    var email = data[i][3];  
+    var stream = data[i][4];  
+
+    var content = "Name: " + name + 
+                  "\nClass: " + studentClass + 
+                  "\nPhone: " + phone + 
+                  "\nEmail: " + email + 
+                  "\nStream: " + stream;
+
+    var existingFiles = folder.getFilesByName(name + "_Details.pdf");
+
+    // Agar file pehle se exist karti hai, toh usko delete karo
+    while (existingFiles.hasNext()) {
+      var file = existingFiles.next();
+      file.setTrashed(true);
+    }
+
+    // Naya document create karo
+    var doc = DocumentApp.create(name + "_Details");
+    doc.getBody().setText(content);
+    doc.saveAndClose();
+
+    // PDF generate karo
+    var pdf = DriveApp.getFileById(doc.getId()).getAs('application/pdf');  
+    folder.createFile(pdf).setName(name + "_Details.pdf");  
+  }
+}

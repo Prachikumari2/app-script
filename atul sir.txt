@@ -1,0 +1,85 @@
+function generateNewEntryPDF() {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1"); 
+    var data = sheet.getDataRange().getValues();
+    
+    var folderId = "1RN7OQuuJJbfWhWXhM0x4nIaQWIlNYTkA"; // 🔹 Google Drive Folder ID (Check Karo)
+    var folder = DriveApp.getFolderById(folderId); 
+    var myEmail = "prachikr585@gmail.com"; 
+
+    Logger.log("✅ Script Started...");
+
+    // 🔍 Pehle se bane PDFs ka naam store karne ke liye
+    var existingFiles = folder.getFiles();
+    var existingFileNames = new Set();
+
+    while (existingFiles.hasNext()) {
+      var file = existingFiles.next();
+      existingFileNames.add(file.getName());
+    }
+
+    for (var i = 1; i < data.length; i++) { 
+      var name = data[i][0];
+      var roll = data[i][1];
+      var phone = data[i][2];
+      var email = data[i][3];
+
+      if (!name || !roll || !phone || !email) continue; // 🔹 Empty Rows Skip
+
+      var docName = `Report_${name}_${roll}.pdf`;
+
+      // ✅ Agar PDF pehle se exist karta hai, toh skip karein
+      if (existingFileNames.has(docName)) {
+        Logger.log(`⏩ Skipping ${name} (Roll: ${roll}), PDF already exists.`);
+        continue;
+      }
+
+      Logger.log("🔹 Processing Entry: " + name + " (Roll: " + roll + ")");
+
+      var doc = DocumentApp.create(`Report_${name}_${roll}`);
+      var body = doc.getBody();
+
+      body.appendParagraph(`Report for ${name}`);
+      body.appendParagraph("----------------------------");
+      body.appendParagraph(`Roll: ${roll}`);
+      body.appendParagraph( `Phone: ${phone}`);
+      body.appendParagraph(`Email: ${email}`);
+      //body.appendParagraph(`Generated on: ${new Date().toLocaleString()}`);
+
+      doc.saveAndClose(); 
+
+      Logger.log("📄 Document Created: " + docName);
+
+      var docId = doc.getId();
+      var docFile = DriveApp.getFileById(docId);
+      Utilities.sleep(3000);
+      var pdfBlob = docFile.getAs('application/pdf');
+
+      Logger.log("✅ PDF Conversion Done!");
+
+      var pdfFile = folder.createFile(pdfBlob);
+      pdfFile.setName(docName);
+
+      Logger.log("📂 PDF Saved in Drive: " + pdfFile.getName());
+
+      var subject = `📄 Generated Report for ${name} (Roll: ${roll})`;
+      var emailBody = `Hello,\n\nAttached is the generated report for ${name} (Roll: ${roll}).\n\nBest Regards,\nHR Team`;
+
+      MailApp.sendEmail({
+        to: myEmail, 
+        subject: subject,
+        body: emailBody,
+        attachments: [pdfBlob]
+      });
+
+      Logger.log("📧 Email Sent to: " + myEmail);
+
+      DriveApp.getFileById(docId).setTrashed(true);
+
+      Logger.log(`✅ PDF Successfully Generated for: ${name} (Roll: ${roll})`);
+    }
+
+  } catch (e) {
+    Logger.log("❌ Error: " + e.toString());
+  }
+}

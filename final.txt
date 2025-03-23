@@ -1,0 +1,98 @@
+function generateNewEntryPDF() {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+    var data = sheet.getDataRange().getValues();
+    
+    var folderId = "1RN7OQuuJJbfWhWXhM0x4nIaQWIlNYTkA"; // Google Drive Folder ID
+    var folder = DriveApp.getFolderById(folderId);
+    var myEmail = "prachikr585@gmail.com";
+
+    Logger.log("✅ Script Started...");
+
+    // Store existing PDF names in a Set
+    var existingFileNames = new Set();
+    var existingFiles = folder.getFiles();
+    while (existingFiles.hasNext()) {
+      var file = existingFiles.next();
+      existingFileNames.add(file.getName());
+    }
+
+    for (var i = 1; i < data.length; i++) {
+      try {
+        var name = data[i][0];
+        var roll = data[i][1];
+        var phone = data[i][2];
+        var email = data[i][3];
+        var studentClass = data[i][4]; // ✅ Class column added
+
+        if (!name || !roll || !phone || !email || !studentClass) continue; // Skip empty rows
+
+        var oldDocName = `Report_${name}_${roll}.pdf`; // Pehle wala format
+        var newDocName = `Report_${name}_${roll}_${studentClass}.pdf`; // ✅ Class added in file name
+
+        // ✅ Purana PDF exist kare toh delete karo (Optional)
+        if (existingFileNames.has(oldDocName)) {
+          var oldFile = folder.getFilesByName(oldDocName);
+          if (oldFile.hasNext()) {
+            oldFile.next().setTrashed(true);
+            Logger.log(`🗑 Deleted old PDF: ${oldDocName}`);
+          }
+        }
+
+        // ✅ Naya PDF generate karna hai agar woh exist nahi karta
+        if (existingFileNames.has(newDocName)) {
+          Logger.log(`⏩ Skipping ${name} (Roll: ${roll}), New PDF already exists.`);
+          continue;
+        }
+
+        Logger.log("🔹 Processing Entry: " + name + " (Roll: " + roll + ")");
+
+        // Create Document
+        var doc = DocumentApp.create(newDocName);
+        var body = doc.getBody();
+        body.appendParagraph(`Report for ${name}`);
+        body.appendParagraph("----------------------------");
+        body.appendParagraph(`Roll: ${roll}`);
+        body.appendParagraph(`Class: ${studentClass}`); // ✅ Class added in document
+        body.appendParagraph(`Phone: ${phone}`);
+        body.appendParagraph(`Email: ${email}`);
+        doc.saveAndClose();
+
+        Logger.log("📄 Document Created: " + newDocName);
+
+        var docId = doc.getId();
+        var docFile = DriveApp.getFileById(docId);
+        var pdfBlob = docFile.getAs('application/pdf');
+
+        Logger.log("✅ PDF Conversion Done!");
+
+        // Save PDF to Drive
+        var pdfFile = folder.createFile(pdfBlob).setName(newDocName);
+
+        Logger.log("📂 PDF Saved in Drive: " + pdfFile.getName());
+
+        // Send Email
+        var subject = `📄 Generated Report for ${name} (Roll: ${roll})`;
+        var emailBody = `Hello,\n\nAttached is the generated report for ${name} (Roll: ${roll}, Class: ${studentClass}).\n\nBest Regards,\nHR Team`;
+
+        MailApp.sendEmail({
+          to: myEmail,
+          subject: subject,
+          body: emailBody,
+          attachments: [pdfBlob]
+        });
+
+        Logger.log("📧 Email Sent to: " + myEmail);
+
+        // Delete the Google Doc after conversion
+        docFile.setTrashed(true);
+
+        Logger.log(`✅ PDF Successfully Generated for: ${name} (Roll: ${roll}, Class: ${studentClass})`);
+      } catch (entryError) {
+        Logger.log(`❌ Error processing ${name} (Roll: ${roll}): ${entryError.toString()}`);
+      }
+    }
+  } catch (e) {
+    Logger.log("❌ Error: " + e.toString());
+  }
+}
